@@ -1,11 +1,12 @@
 "use client";
 
-import * as faceapi from "@vladmandic/face-api";
-import * as tf from "@tensorflow/tfjs";
-
 const MODEL_URL = "/models/face-api";
 export const MATCH_THRESHOLD = 0.46;
 export const AMBIGUITY_GAP = 0.06;
+
+type Point = { x: number; y: number };
+
+type FaceApi = typeof import("@vladmandic/face-api");
 
 export type Challenge = "blink" | "look-left" | "look-right";
 
@@ -27,18 +28,30 @@ export function challengeCopy(challenge: Challenge): string {
 }
 
 let loaded = false;
+let api: FaceApi | null = null;
 
-export async function loadFaceModels() {
-  if (loaded) return;
+async function getApi(): Promise<FaceApi> {
+  if (typeof window === "undefined") {
+    throw new Error("Face matching runs only in the tablet browser.");
+  }
+  if (api) return api;
+  const tf = await import("@tensorflow/tfjs");
   await tf.ready();
   if (tf.getBackend() !== "webgl") {
     try {
       await tf.setBackend("webgl");
       await tf.ready();
     } catch {
-      /* wasm/cpu fallback already set */
+      /* cpu fallback */
     }
   }
+  api = await import("@vladmandic/face-api");
+  return api;
+}
+
+export async function loadFaceModels() {
+  if (loaded) return;
+  const faceapi = await getApi();
   await Promise.all([
     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
@@ -50,19 +63,19 @@ export async function loadFaceModels() {
 export type FaceSample = {
   descriptor: number[];
   box: { x: number; y: number; width: number; height: number };
-  landmarks: faceapi.Point[];
+  landmarks: Point[];
   score: number;
 };
-
-function detectorOptions() {
-  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
-}
 
 export async function detectFaces(
   input: HTMLVideoElement | HTMLCanvasElement,
 ): Promise<FaceSample[]> {
+  const faceapi = await getApi();
   const detections = await faceapi
-    .detectAllFaces(input, detectorOptions())
+    .detectAllFaces(
+      input,
+      new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 }),
+    )
     .withFaceLandmarks()
     .withFaceDescriptors();
   return detections.map((d) => ({
@@ -73,23 +86,23 @@ export async function detectFaces(
       width: d.detection.box.width,
       height: d.detection.box.height,
     },
-    landmarks: d.landmarks.positions,
+    landmarks: d.landmarks.positions.map((p) => ({ x: p.x, y: p.y })),
     score: d.detection.score,
   }));
 }
 
-function dist(a: faceapi.Point, b: faceapi.Point) {
+function dist(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function eyeAspect(points: faceapi.Point[]) {
+function eyeAspect(points: Point[]) {
   const vertical = dist(points[1], points[5]) + dist(points[2], points[4]);
   const horizontal = dist(points[0], points[3]);
   if (horizontal === 0) return 1;
   return vertical / (2 * horizontal);
 }
 
-export function bothEyesOpen(landmarks: faceapi.Point[]): number {
+export function bothEyesOpen(landmarks: Point[]): number {
   const left = eyeAspect(landmarks.slice(36, 42));
   const right = eyeAspect(landmarks.slice(42, 48));
   return (left + right) / 2;
