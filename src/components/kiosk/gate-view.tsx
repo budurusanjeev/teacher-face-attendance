@@ -77,8 +77,9 @@ export function GateView() {
           setPhase("idle");
           setHint("Stand here to check in or out.");
         }
-      } catch {
-        setHint("Could not load local face models from this tablet.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        setHint(`Could not load local face models. ${message}`);
       }
     }
     void boot();

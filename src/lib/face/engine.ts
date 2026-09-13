@@ -6,8 +6,6 @@ export const AMBIGUITY_GAP = 0.06;
 
 type Point = { x: number; y: number };
 
-type FaceApi = typeof import("@vladmandic/face-api");
-
 export type Challenge = "blink" | "look-left" | "look-right";
 
 export const CHALLENGES: Challenge[] = ["blink", "look-left", "look-right"];
@@ -28,9 +26,10 @@ export function challengeCopy(challenge: Challenge): string {
 }
 
 let loaded = false;
-let api: FaceApi | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let api: any = null;
 
-async function getApi(): Promise<FaceApi> {
+async function getApi() {
   if (typeof window === "undefined") {
     throw new Error("Face matching runs only in the tablet browser.");
   }
@@ -45,7 +44,7 @@ async function getApi(): Promise<FaceApi> {
       /* cpu fallback */
     }
   }
-  api = await import("@vladmandic/face-api");
+  api = await import("@vladmandic/face-api/dist/face-api.esm.js");
   return api;
 }
 
@@ -78,7 +77,7 @@ export async function detectFaces(
     )
     .withFaceLandmarks()
     .withFaceDescriptors();
-  return detections.map((d) => ({
+  return detections.map((d: { descriptor: ArrayLike<number>; detection: { box: { x: number; y: number; width: number; height: number }; score: number }; landmarks: { positions: Point[] } }) => ({
     descriptor: Array.from(d.descriptor),
     box: {
       x: d.detection.box.x,
@@ -86,7 +85,7 @@ export async function detectFaces(
       width: d.detection.box.width,
       height: d.detection.box.height,
     },
-    landmarks: d.landmarks.positions.map((p) => ({ x: p.x, y: p.y })),
+    landmarks: d.landmarks.positions.map((p: Point) => ({ x: p.x, y: p.y })),
     score: d.detection.score,
   }));
 }
