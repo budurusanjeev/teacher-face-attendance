@@ -80,7 +80,9 @@ export function OfficeApp() {
     setSettings(s);
     const today = await todayRows();
     setRows(today.rows);
-    setTeachers(await listTeachers());
+    const list = await listTeachers();
+    setTeachers(list);
+    if (list.length === 0) setTab("staff");
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     setAttempts(
@@ -179,7 +181,7 @@ export function OfficeApp() {
       });
       setStaffName("");
       setStaffId("");
-      toast.success("Teacher added. Enroll their face next.");
+      toast.success("Teacher added. Click Enroll face on their row.");
       await refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not save this teacher.";
@@ -258,9 +260,10 @@ export function OfficeApp() {
       <div className="flex min-h-full flex-1 items-center justify-center bg-zinc-100 px-4">
         <Card className="w-full max-w-sm">
           <CardHeader>
-            <CardTitle>Principal office</CardTitle>
+            <CardTitle>Register staff (office)</CardTitle>
             <CardDescription>
-              Default PIN is 1234. Change it in Settings after you sign in.
+              There is no email signup. Unlock with PIN <strong>1234</strong>, add a teacher, then
+              enroll their face on this device.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -276,7 +279,7 @@ export function OfficeApp() {
                 autoFocus
                 autoComplete="off"
               />
-              <Button type="submit">Unlock</Button>
+              <Button type="submit">Unlock and register</Button>
               <Link href="/" className="text-center text-sm text-muted-foreground hover:underline">
                 Back to gate
               </Link>
@@ -342,7 +345,7 @@ export function OfficeApp() {
               />
             </div>
             {filtered.length === 0 ? (
-              <Empty>No teachers added yet. Open Staff and add the first name.</Empty>
+              <Empty>No teachers added yet. Open Register a teacher on the Staff tab.</Empty>
             ) : (
               <div className="overflow-hidden rounded-xl border bg-white">
                 <Table>
@@ -468,16 +471,18 @@ export function OfficeApp() {
           <TabsContent value="staff" className="mt-4 space-y-4">
             <form className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-4" onSubmit={(e) => void addTeacher(e)}>
               <div className="sm:col-span-4">
-                <p className="font-medium">Add teacher</p>
-                <p className="text-sm text-muted-foreground">Then enroll their face on this tablet.</p>
+                <p className="font-medium">Register a teacher</p>
+                <p className="text-sm text-muted-foreground">
+                  1) Add name and employee ID. 2) Click Enroll face. 3) Blink three times at the camera.
+                </p>
               </div>
               <Input name="fullName" placeholder="Full name" value={staffName} onChange={(e) => setStaffName(e.target.value)} />
               <Input name="employeeId" placeholder="Employee ID" value={staffId} onChange={(e) => setStaffId(e.target.value)} />
               <Input name="department" placeholder="Department" value={staffDept} onChange={(e) => setStaffDept(e.target.value)} />
-              <Button type="submit">Add</Button>
+              <Button type="submit">Register</Button>
             </form>
             {teachers.length === 0 ? (
-              <Empty>No staff yet.</Empty>
+              <Empty>No staff registered yet. Use the form above, then Enroll face.</Empty>
             ) : (
               <div className="overflow-hidden rounded-xl border bg-white">
                 <Table>

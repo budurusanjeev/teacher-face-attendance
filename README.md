@@ -25,6 +25,20 @@ Anti-spoofing blocks common print/screen tricks. It cannot guarantee that a dete
 
 Default office PIN: **1234** (change it in Settings).
 
+## How to register a teacher
+
+This app has **no email/password signup**. Registration is on this tablet only.
+
+1. Run `npm install` and `npm run dev`.
+2. Open [http://127.0.0.1:43123](http://127.0.0.1:43123) in Chrome.
+3. Click **Register staff** (or go to [http://127.0.0.1:43123/office](http://127.0.0.1:43123/office)).
+4. Unlock with PIN **1234**.
+5. On **Staff**, type full name and employee ID, click **Register**.
+6. Click **Enroll face**. Allow the camera. Look into the oval and **blink three times**.
+7. Face status becomes `enrolled`. Return to the gate to check in.
+
+If Chrome asks for the camera, choose **Allow**. Use the same browser profile later or enrollments disappear.
+
 ## Run locally
 
 Needs Node.js 20+.

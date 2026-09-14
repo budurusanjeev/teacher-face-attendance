@@ -38,6 +38,12 @@ type SuccessState = {
   at: string;
 };
 
+function idleRegisterHint(count: number) {
+  return count === 0
+    ? "No staff registered yet. Open Register staff, then come back to this gate."
+    : "Stand here to check in or out.";
+}
+
 export function GateView() {
   const { videoRef, setVideoRef, error: cameraError, ready } = useCamera(true);
   const [settings, setSettings] = useState<SchoolSettings | null>(null);
@@ -46,7 +52,7 @@ export function GateView() {
   const [hint, setHint] = useState("Loading on-device face models…");
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const [lockMs, setLockMs] = useState(0);
-  const [clock, setClock] = useState("");
+  const [enrolledCount, setEnrolledCount] = useState(0);
   const busy = useRef(false);
   const history = useRef<FaceSample[]>([]);
   const challenge = useRef<Challenge>("blink");
@@ -69,13 +75,21 @@ export function GateView() {
       const s = await ensureDefaults();
       if (cancelled) return;
       setSettings(s);
+      const templates = await db.templates.toArray();
+      const teachers = await db.teachers.toArray();
+      if (cancelled) return;
+      const readyCount = templates.filter((t) => {
+        const teacher = teachers.find((x) => x.id === t.teacherId);
+        return teacher?.active && teacher.faceStatus === "enrolled";
+      }).length;
+      setEnrolledCount(readyCount);
       try {
         await loadFaceModels();
         if (cancelled) return;
         setModelsReady(true);
         if (!refreshLock()) {
           setPhase("idle");
-          setHint("Stand here to check in or out.");
+          setHint(idleRegisterHint(readyCount));
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
@@ -202,7 +216,12 @@ export function GateView() {
               });
               const hit = matchTeacher(faces[0].descriptor, enrolled);
               if (!hit) {
-                await fail("Not recognized — see the office.", "no_match");
+                await fail(
+                  enrolled.length === 0
+                    ? "No staff registered yet. Open Register staff first."
+                    : "Not recognized — see the office.",
+                  "no_match",
+                );
                 busy.current = false;
               } else {
                 let geo = null;
@@ -329,8 +348,19 @@ export function GateView() {
         {phase === "idle" || phase === "scanning" ? (
           <p className="mt-2 flex items-center gap-2 text-sm text-emerald-200/70">
             <Camera className="size-4" />
-            Remove masks. One person. Live camera only.
+            {enrolledCount === 0
+              ? "This camera is for attendance after a face is enrolled."
+              : "Remove masks. One person. Live camera only."}
           </p>
+        ) : null}
+
+        {enrolledCount === 0 && (phase === "idle" || phase === "scanning" || phase === "boot") ? (
+          <Link
+            href="/office"
+            className="mt-5 rounded-full bg-emerald-300 px-5 py-2.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-200"
+          >
+            Register staff
+          </Link>
         ) : null}
 
         {phase === "challenge" ? (
@@ -346,7 +376,7 @@ export function GateView() {
           href="/office"
           className="rounded-md px-2 py-1 text-emerald-200/80 hover:bg-emerald-900/40 hover:text-white"
         >
-          Office
+          Register staff
         </Link>
       </footer>
     </div>
