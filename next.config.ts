@@ -10,6 +10,7 @@ const faceApiBrowser = path.join(
 
 const nextConfig: NextConfig = {
   agentRules: false,
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   turbopack: {
     resolveAlias: {
       "@vladmandic/face-api": faceApiBrowser,

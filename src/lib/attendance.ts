@@ -53,7 +53,7 @@ export async function todayRows(): Promise<{
   const settings = await ensureDefaults();
   const day = todayKey(settings.timezone);
   const [teachers, sessions] = await Promise.all([
-    db.teachers.orderBy("fullName").toArray(),
+    db.teachers.toArray(),
     db.sessions.toArray(),
   ]);
   const todaySessions = sessions.filter(
@@ -65,6 +65,7 @@ export async function todayRows(): Promise<{
     if (!prev || s.loginAt > prev.loginAt) byTeacher.set(s.teacherId, s);
   }
   const rows = teachers
+    .sort((a, b) => a.fullName.localeCompare(b.fullName))
     .filter((t) => t.active)
     .map((teacher) => {
       const session = byTeacher.get(teacher.id) ?? null;

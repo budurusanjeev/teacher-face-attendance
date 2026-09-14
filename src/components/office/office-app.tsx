@@ -28,6 +28,7 @@ import { downloadText, sessionsToCsv } from "@/lib/csv";
 import {
   db,
   ensureDefaults,
+  listTeachers,
   type AttemptLog,
   type AttendanceSession,
   type SchoolSettings,
@@ -79,7 +80,7 @@ export function OfficeApp() {
     setSettings(s);
     const today = await todayRows();
     setRows(today.rows);
-    setTeachers(await db.teachers.orderBy("fullName").toArray());
+    setTeachers(await listTeachers());
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     setAttempts(
@@ -93,39 +94,39 @@ export function OfficeApp() {
   }
 
   useEffect(() => {
+    if (!unlocked) return;
     let cancelled = false;
     void (async () => {
-      const s = await ensureDefaults();
-      if (cancelled) return;
-      setSettings(s);
-      const today = await todayRows();
-      if (cancelled) return;
-      setRows(today.rows);
-      setTeachers(await db.teachers.orderBy("fullName").toArray());
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      setAttempts(
-        (await db.attempts.orderBy("at").reverse().limit(80).toArray()).filter(
-          (a) => a.at >= start.toISOString(),
-        ),
-      );
-      const day = todayKey(s.timezone);
-      setFromDay((prev) => prev || `${day.slice(0, 8)}01`);
-      setToDay((prev) => prev || day);
+      try {
+        await refresh();
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : "Could not load office data.";
+          toast.error(message);
+        }
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+    // refresh reads current date filters; run when the office is unlocked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unlocked]);
 
-  async function unlock(e: React.FormEvent) {
+  async function unlock(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const s = await ensureDefaults();
-    if (await pinsMatch(pin, s.pinHash)) {
-      setUnlocked(true);
-      setPin("");
-    } else {
-      toast.error("Wrong office PIN.");
+    const entered = String(new FormData(e.currentTarget).get("pin") ?? pin).trim();
+    try {
+      const s = await ensureDefaults();
+      if (await pinsMatch(entered, s.pinHash)) {
+        setUnlocked(true);
+        setPin("");
+      } else {
+        toast.error("Wrong office PIN.");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not open office storage.";
+      toast.error(message);
     }
   }
 
@@ -151,31 +152,39 @@ export function OfficeApp() {
     return c;
   }, [rows]);
 
-  async function addTeacher(e: React.FormEvent) {
+  async function addTeacher(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const employeeId = staffId.trim();
-    if (!staffName.trim() || !employeeId) {
+    const form = new FormData(e.currentTarget);
+    const fullName = String(form.get("fullName") ?? staffName).trim();
+    const employeeId = String(form.get("employeeId") ?? staffId).trim();
+    const department = String(form.get("department") ?? staffDept).trim() || "General";
+    if (!fullName || !employeeId) {
       toast.error("Name and employee ID are required.");
       return;
     }
-    const dup = await db.teachers.where("employeeId").equals(employeeId).first();
-    if (dup) {
-      toast.error("That employee ID already exists.");
-      return;
+    try {
+      const dup = await db.teachers.where("employeeId").equals(employeeId).first();
+      if (dup) {
+        toast.error("That employee ID already exists.");
+        return;
+      }
+      await db.teachers.add({
+        id: createId("tch"),
+        fullName,
+        employeeId,
+        department,
+        faceStatus: "pending",
+        active: true,
+        createdAt: new Date().toISOString(),
+      });
+      setStaffName("");
+      setStaffId("");
+      toast.success("Teacher added. Enroll their face next.");
+      await refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not save this teacher.";
+      toast.error(message);
     }
-    await db.teachers.add({
-      id: createId("tch"),
-      fullName: staffName.trim(),
-      employeeId,
-      department: staffDept.trim() || "General",
-      faceStatus: "pending",
-      active: true,
-      createdAt: new Date().toISOString(),
-    });
-    setStaffName("");
-    setStaffId("");
-    toast.success("Teacher added. Enroll their face next.");
-    await refresh();
   }
 
   async function loadHistory() {
@@ -259,11 +268,13 @@ export function OfficeApp() {
               <Label htmlFor="pin">Office PIN</Label>
               <Input
                 id="pin"
+                name="pin"
                 type="password"
                 inputMode="numeric"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 autoFocus
+                autoComplete="off"
               />
               <Button type="submit">Unlock</Button>
               <Link href="/" className="text-center text-sm text-muted-foreground hover:underline">
@@ -460,9 +471,9 @@ export function OfficeApp() {
                 <p className="font-medium">Add teacher</p>
                 <p className="text-sm text-muted-foreground">Then enroll their face on this tablet.</p>
               </div>
-              <Input placeholder="Full name" value={staffName} onChange={(e) => setStaffName(e.target.value)} />
-              <Input placeholder="Employee ID" value={staffId} onChange={(e) => setStaffId(e.target.value)} />
-              <Input placeholder="Department" value={staffDept} onChange={(e) => setStaffDept(e.target.value)} />
+              <Input name="fullName" placeholder="Full name" value={staffName} onChange={(e) => setStaffName(e.target.value)} />
+              <Input name="employeeId" placeholder="Employee ID" value={staffId} onChange={(e) => setStaffId(e.target.value)} />
+              <Input name="department" placeholder="Department" value={staffDept} onChange={(e) => setStaffDept(e.target.value)} />
               <Button type="submit">Add</Button>
             </form>
             {teachers.length === 0 ? (

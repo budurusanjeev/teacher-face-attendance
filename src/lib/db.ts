@@ -102,10 +102,23 @@ class KioskDB extends Dexie {
       audits: "id, at, entityId",
       settings: "id",
     });
+    this.version(2).stores({
+      teachers: "id, employeeId, fullName, department, faceStatus, active",
+      templates: "id, teacherId",
+      sessions: "id, teacherId, loginAt, logoutAt",
+      attempts: "id, at, result, teacherId",
+      audits: "id, at, entityId",
+      settings: "id",
+    });
   }
 }
 
 export const db = new KioskDB();
+
+export async function listTeachers(): Promise<Teacher[]> {
+  const rows = await db.teachers.toArray();
+  return rows.sort((a, b) => a.fullName.localeCompare(b.fullName));
+}
 
 export async function ensureDefaults(): Promise<SchoolSettings> {
   const existing = await db.settings.get("singleton");
