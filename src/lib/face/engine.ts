@@ -77,7 +77,7 @@ export async function detectFaces(
     )
     .withFaceLandmarks()
     .withFaceDescriptors();
-  return detections.map((d: { descriptor: ArrayLike<number>; detection: { box: { x: number; y: number; width: number; height: number }; score: number }; landmarks: { positions: Point[] } }) => ({
+  return detections.map((d: { descriptor: ArrayLike<number>; detection: { box: { x: number; y: number; width: number; height: number }; score: number }; landmarks: unknown }) => ({
     descriptor: Array.from(d.descriptor),
     box: {
       x: d.detection.box.x,
@@ -85,9 +85,19 @@ export async function detectFaces(
       width: d.detection.box.width,
       height: d.detection.box.height,
     },
-    landmarks: d.landmarks.positions.map((p: Point) => ({ x: p.x, y: p.y })),
+    landmarks: landmarkPoints(d.landmarks),
     score: d.detection.score,
   }));
+}
+
+export function landmarkPoints(landmarks: unknown): Point[] {
+  if (!landmarks || typeof landmarks !== "object") return [];
+  const rec = landmarks as {
+    positions?: Array<{ x: number; y: number }>;
+    _positions?: Array<{ x: number; y: number }>;
+  };
+  const raw = rec.positions ?? rec._positions ?? [];
+  return Array.from(raw, (p) => ({ x: Number(p.x), y: Number(p.y) }));
 }
 
 function dist(a: Point, b: Point) {
@@ -185,15 +195,15 @@ export function qualityCheck(
   if (samples.length > 1) return "many_faces";
   const face = samples[0];
   const minSide = Math.min(video.videoWidth || 640, video.videoHeight || 480);
-  if (face.box.width < minSide * 0.22 || face.box.height < minSide * 0.22) {
+  if (face.box.width < minSide * 0.14 || face.box.height < minSide * 0.14) {
     return "too_small";
   }
   const luma = lumaOfCrop(video, face.box);
-  if (luma < 38) return "too_dark";
-  if (luma > 245) return "too_bright";
+  if (luma < 28) return "too_dark";
+  if (luma > 250) return "too_bright";
   const sharpness = screenLikeVariance(video, face.box);
   // A printed photo or phone screen is often unusually flat / grid-like.
-  if (sharpness < 4.5) return "too_flat";
+  if (sharpness < 2.2) return "too_flat";
   return null;
 }
 
@@ -263,7 +273,7 @@ export function evaluateChallenge(
   const yaws = history.map((h) => yawRatio(h));
   const openMax = Math.max(...ears, 0);
   const closedMin = Math.min(...ears, 1);
-  const blinked = openMax > 0.23 && closedMin < 0.19 && openMax - closedMin > 0.06;
+  const blinked = openMax > 0.18 && closedMin < 0.22 && openMax - closedMin > 0.035;
 
   const yaw0 = yaws[0] ?? 0;
   const yawMin = Math.min(...yaws, 0);
@@ -302,11 +312,11 @@ export function evaluateChallenge(
 }
 
 export function hasLiveMotion(history: FaceSample[]): boolean {
-  if (history.length < 6) return false;
+  if (history.length < 4) return false;
   let travel = 0;
   for (let i = 1; i < history.length; i++) {
     travel += motionScore(history[i - 1], history[i]);
   }
-  // A still print taped to the lens barely moves.
-  return travel > 0.04;
+  // A still print taped to the lens barely moves. A blink still moves landmarks.
+  return travel > 0.018;
 }

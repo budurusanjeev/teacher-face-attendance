@@ -39,7 +39,7 @@ type SuccessState = {
 };
 
 export function GateView() {
-  const { videoRef, error: cameraError, ready } = useCamera(true);
+  const { videoRef, setVideoRef, error: cameraError, ready } = useCamera(true);
   const [settings, setSettings] = useState<SchoolSettings | null>(null);
   const [modelsReady, setModelsReady] = useState(false);
   const [phase, setPhase] = useState<Phase>("boot");
@@ -288,7 +288,7 @@ export function GateView() {
       <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col items-center px-4 pb-24">
         <div className="relative aspect-[3/4] w-full max-w-md overflow-hidden rounded-[2rem] bg-black shadow-[0_0_0_1px_rgba(16,185,129,0.25)] sm:aspect-[4/5]">
           <video
-            ref={videoRef}
+            ref={setVideoRef}
             className="h-full w-full object-cover"
             playsInline
             muted
