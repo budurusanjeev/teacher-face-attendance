@@ -10,7 +10,7 @@ import {
   type Teacher,
 } from "@/lib/db";
 import { createId } from "@/lib/ids";
-import { isPastEndOfDay, isWithinWindow, schoolDate, todayKey } from "@/lib/time";
+import { isPastEndOfDay, schoolDate, todayKey } from "@/lib/time";
 import { distanceMeters, type GeoFix } from "@/lib/geo";
 
 export type TodayRow = {
@@ -143,11 +143,6 @@ export async function clockMatchedTeacher(
   const iso = now.toISOString();
 
   if (!open) {
-    if (!isWithinWindow(settings.timezone, settings.checkInStart, settings.checkInEnd, now)) {
-      const reason = `Check-in is only ${settings.checkInStart}–${settings.checkInEnd}.`;
-      await logAttempt("outside_hours", reason, teacher.id);
-      return { ok: false, reason, attempt: "outside_hours" };
-    }
     await db.sessions.add({
       id: createId("ses"),
       teacherId: teacher.id,
@@ -162,12 +157,6 @@ export async function clockMatchedTeacher(
     });
     await logAttempt("matched", "check-in", teacher.id);
     return { ok: true, action: "check-in", teacher, at: iso };
-  }
-
-  if (!isWithinWindow(settings.timezone, settings.checkOutStart, settings.checkOutEnd, now)) {
-    const reason = `Check-out is only ${settings.checkOutStart}–${settings.checkOutEnd}.`;
-    await logAttempt("outside_hours", reason, teacher.id);
-    return { ok: false, reason, attempt: "outside_hours" };
   }
 
   await db.sessions.update(open.id, {

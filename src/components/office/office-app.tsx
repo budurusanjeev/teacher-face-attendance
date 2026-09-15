@@ -568,34 +568,6 @@ export function OfficeApp() {
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Check-in start">
-                  <Input
-                    type="time"
-                    value={settings.checkInStart}
-                    onChange={(e) => setSettings({ ...settings, checkInStart: e.target.value })}
-                  />
-                </Field>
-                <Field label="Check-in end">
-                  <Input
-                    type="time"
-                    value={settings.checkInEnd}
-                    onChange={(e) => setSettings({ ...settings, checkInEnd: e.target.value })}
-                  />
-                </Field>
-                <Field label="Check-out start">
-                  <Input
-                    type="time"
-                    value={settings.checkOutStart}
-                    onChange={(e) => setSettings({ ...settings, checkOutStart: e.target.value })}
-                  />
-                </Field>
-                <Field label="Check-out end">
-                  <Input
-                    type="time"
-                    value={settings.checkOutEnd}
-                    onChange={(e) => setSettings({ ...settings, checkOutEnd: e.target.value })}
-                  />
-                </Field>
                 <Field label="End of day">
                   <Input
                     type="time"
