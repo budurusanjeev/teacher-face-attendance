@@ -38,12 +38,14 @@ export function EnrollDialog({
 }) {
   const { videoRef, setVideoRef, error, ready } = useCamera(open);
   const [samples, setSamples] = useState<number[][]>([]);
-  const [hint, setHint] = useState("Allow the camera, then look into the oval and blink.");
+  const [hint, setHint] = useState("Allow the camera, then look into the oval.");
   const [modelsReady, setModelsReady] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [faceOk, setFaceOk] = useState(false);
   const history = useRef<FaceSample[]>([]);
   const cooldownUntil = useRef(0);
   const samplesRef = useRef<number[][]>([]);
+  const latestDescriptor = useRef<number[] | null>(null);
 
   const persistRef = useRef<(list: number[][]) => Promise<void>>(async () => undefined);
 
@@ -88,6 +90,21 @@ export function EnrollDialog({
     }
   };
 
+  function addSample(descriptor: number[]) {
+    if (samplesRef.current.length >= NEEDED) return;
+    const next = [...samplesRef.current, descriptor];
+    samplesRef.current = next;
+    setSamples(next);
+    history.current = [];
+    cooldownUntil.current = Date.now() + 700;
+    toast.success(`Sample ${next.length} of ${NEEDED} saved.`);
+    if (next.length >= NEEDED) {
+      setHint("Three samples captured. Click Save template.");
+    } else {
+      setHint(`Sample ${next.length} of ${NEEDED} saved. Capture the next one.`);
+    }
+  }
+
   useEffect(() => {
     samplesRef.current = samples;
   }, [samples]);
@@ -96,8 +113,10 @@ export function EnrollDialog({
     if (!open) {
       setSamples([]);
       setModelsReady(false);
+      setFaceOk(false);
+      latestDescriptor.current = null;
       history.current = [];
-      setHint("Allow the camera, then look into the oval and blink.");
+      setHint("Allow the camera, then look into the oval.");
       return;
     }
     let cancelled = false;
@@ -134,32 +153,30 @@ export function EnrollDialog({
         const q = qualityCheck(video, faces);
         if (q) {
           history.current = [];
+          latestDescriptor.current = null;
+          setFaceOk(false);
           setHint(qualityMessage(q));
         } else if (Date.now() < cooldownUntil.current) {
-          setHint(`Sample ${samplesRef.current.length} of ${NEEDED} saved. Blink again.`);
+          setFaceOk(true);
+          latestDescriptor.current = faces[0].descriptor;
+          setHint(`Sample ${samplesRef.current.length} of ${NEEDED} saved. Capture again.`);
         } else {
+          latestDescriptor.current = faces[0].descriptor;
+          setFaceOk(true);
           history.current = [...history.current, faces[0]].slice(-40);
           const blink = evaluateChallenge("blink", history.current);
+          const held = history.current.length >= 12;
           setHint(
-            `Sample ${samplesRef.current.length + 1} of ${NEEDED}: look at the camera and blink once.`,
+            `Face ready for sample ${samplesRef.current.length + 1} of ${NEEDED}. Blink, or click Capture sample.`,
           );
-          if (blink.passed) {
-            const next = [...samplesRef.current, faces[0].descriptor];
-            samplesRef.current = next;
-            setSamples(next);
-            history.current = [];
-            cooldownUntil.current = Date.now() + 900;
-            if (next.length >= NEEDED) {
-              setHint("Three samples captured. Saving…");
-              void persistRef.current(next);
-            } else {
-              setHint(`Sample ${next.length} of ${NEEDED} saved. Blink again.`);
-            }
+          if (blink.passed || held) {
+            addSample(faces[0].descriptor);
           }
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Face capture failed.";
         setHint(message);
+        setFaceOk(false);
       }
       if (running) window.setTimeout(() => void tick(), 90);
     };
@@ -169,6 +186,15 @@ export function EnrollDialog({
       running = false;
     };
   }, [open, ready, modelsReady, error, videoRef]);
+
+  function captureNow() {
+    if (samplesRef.current.length >= NEEDED) return;
+    if (!latestDescriptor.current) {
+      toast.error("No face in the oval yet. Sit closer and look at the camera.");
+      return;
+    }
+    addSample(latestDescriptor.current);
+  }
 
   async function save() {
     await persistRef.current(samples);
@@ -191,10 +217,10 @@ export function EnrollDialog({
         <DialogHeader className="shrink-0 pr-8">
           <DialogTitle>Enroll face — {teacher?.fullName}</DialogTitle>
           <DialogDescription>
-            Allow the camera, look into the oval, and blink three times.
+            Look into the upright oval, then capture three samples and save.
           </DialogDescription>
         </DialogHeader>
-        <div className="relative h-[min(42dvh,280px)] w-full shrink-0 overflow-hidden rounded-xl bg-black">
+        <div className="relative mx-auto aspect-[3/4] h-[min(48dvh,320px)] shrink-0 overflow-hidden rounded-xl bg-black">
           <video
             ref={setVideoRef}
             data-enroll-video
@@ -204,7 +230,7 @@ export function EnrollDialog({
             autoPlay
           />
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-[70%] w-[56%] rounded-[50%] border-2 border-emerald-300/80" />
+            <div className="h-[78%] w-[58%] rounded-[50%] border-2 border-emerald-300/90" />
           </div>
           {!ready ? (
             <div className="absolute inset-x-3 bottom-3 rounded-md bg-black/70 px-2 py-1 text-center text-xs text-white">
@@ -216,9 +242,16 @@ export function EnrollDialog({
         <p className="shrink-0 text-sm font-medium">
           {samples.length} / {NEEDED} samples
         </p>
-        <div className="flex shrink-0 justify-end gap-2 border-t pt-3">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t pt-3">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={captureNow}
+            disabled={!faceOk || samples.length >= NEEDED || saving}
+          >
+            Capture sample
           </Button>
           <Button onClick={() => void save()} disabled={samples.length < NEEDED || saving}>
             {saving ? "Saving…" : "Save template"}
