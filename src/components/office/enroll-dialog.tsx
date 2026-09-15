@@ -19,7 +19,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -185,38 +184,46 @@ export function EnrollDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg" keepMounted>
-        <DialogHeader>
+      <DialogContent
+        className="flex max-h-[90dvh] w-[min(100%,28rem)] flex-col gap-3 overflow-hidden p-4 sm:max-w-md"
+        keepMounted={false}
+      >
+        <DialogHeader className="shrink-0 pr-8">
           <DialogTitle>Enroll face — {teacher?.fullName}</DialogTitle>
           <DialogDescription>
-            Live camera only. Blink clearly three times. A printed photo cannot be enrolled.
+            Allow the camera, look into the oval, and blink three times.
           </DialogDescription>
         </DialogHeader>
-        <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-black">
+        <div className="relative h-[min(42dvh,280px)] w-full shrink-0 overflow-hidden rounded-xl bg-black">
           <video
             ref={setVideoRef}
             data-enroll-video
-            className="h-full w-full object-cover"
+            className="h-full w-full scale-x-[-1] object-cover"
             playsInline
             muted
             autoPlay
           />
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-[58%] w-[70%] rounded-[50%] border-2 border-emerald-300/80" />
+            <div className="h-[70%] w-[56%] rounded-[50%] border-2 border-emerald-300/80" />
           </div>
+          {!ready ? (
+            <div className="absolute inset-x-3 bottom-3 rounded-md bg-black/70 px-2 py-1 text-center text-xs text-white">
+              {error ?? "Waiting for camera… allow access if the browser asks."}
+            </div>
+          ) : null}
         </div>
-        <p className="text-sm text-muted-foreground">{status}</p>
-        <p className="text-sm font-medium">
+        <p className="shrink-0 text-sm text-muted-foreground">{status}</p>
+        <p className="shrink-0 text-sm font-medium">
           {samples.length} / {NEEDED} samples
         </p>
-        <DialogFooter>
+        <div className="flex shrink-0 justify-end gap-2 border-t pt-3">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={() => void save()} disabled={samples.length < NEEDED || saving}>
             {saving ? "Saving…" : "Save template"}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
