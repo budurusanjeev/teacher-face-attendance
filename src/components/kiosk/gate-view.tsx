@@ -315,7 +315,7 @@ export function GateView() {
             autoPlay
           />
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-[58%] w-[70%] rounded-[50%] border-2 border-emerald-300/80 shadow-[0_0_0_9999px_rgba(11,31,23,0.45)]" />
+            <div className="h-[72%] w-[52%] rounded-[50%] border-2 border-emerald-300/80 shadow-[0_0_0_9999px_rgba(11,31,23,0.45)]" />
           </div>
           {phase === "success" && success ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-950/85 px-6 text-center">
