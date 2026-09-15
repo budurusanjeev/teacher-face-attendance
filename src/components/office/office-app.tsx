@@ -276,8 +276,8 @@ export function OfficeApp() {
                 inputMode="numeric"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                autoFocus
                 autoComplete="off"
+                autoFocus={false}
               />
               <Button type="submit">Unlock and register</Button>
               <Link href="/" className="text-center text-sm text-muted-foreground hover:underline">
