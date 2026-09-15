@@ -52,6 +52,7 @@ export function GateView() {
   const [hint, setHint] = useState("Loading on-device face models…");
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const [lockMs, setLockMs] = useState(0);
+  const [clock, setClock] = useState("");
   const [enrolledCount, setEnrolledCount] = useState(0);
   const busy = useRef(false);
   const history = useRef<FaceSample[]>([]);
@@ -111,12 +112,12 @@ export function GateView() {
         setLockMs(remaining);
         if (remaining <= 0) {
           setPhase("idle");
-          setHint("Stand here to check in or out.");
+          setHint(idleRegisterHint(enrolledCount));
         }
       }
     }, 250);
     return () => window.clearInterval(id);
-  }, [settings, phase]);
+  }, [settings, phase, enrolledCount]);
 
   const fail = useCallback(
     async (
@@ -260,7 +261,7 @@ export function GateView() {
                   window.setTimeout(() => {
                     setSuccess(null);
                     setPhase("idle");
-                    setHint("Stand here to check in or out.");
+                    setHint(idleRegisterHint(enrolledCount));
                     history.current = [];
                     busy.current = false;
                   }, 3200);
