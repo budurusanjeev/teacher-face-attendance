@@ -51,9 +51,8 @@ npm run dev
 Open [http://127.0.0.1:43123](http://127.0.0.1:43123). Allow the camera.
 
 1. Open **Office**, PIN `1234`.
-2. **Staff** → add a teacher → **Enroll face** (3 live blink samples).
-3. Widen check-in/out hours in **Settings** if you are testing outside 06:30–10:00 / 12:00–18:00.
-4. Return to the **gate** and stand in the oval.
+2. **Staff** → add a teacher → **Enroll face** (3 live samples).
+3. Return to the **gate** and stand in the oval.
 
 Data stays in this browser profile. Clearing site data wipes enrollments.
 
@@ -62,5 +61,4 @@ Data stays in this browser profile. Clearing site data wipes enrollments.
 - Use Chrome in fullscreen / kiosk mode on a school-owned tablet.
 - Turn on **Require GPS** in Settings when the device has a clear location fix.
 - Enroll staff in the same room lighting as the gate.
-- Tighten check-in windows to your school day.
 - Keep the tablet supervised; office PIN is the only report lock in v1.
